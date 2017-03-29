@@ -86,6 +86,12 @@ def increment_filename(filepath, filestr="", fileout=None):
     # Return the absolute path so there are no relative path problems later
     return os.path.abspath(filepath)
     
+def _ensurelist(supposed_list):
+	if isinstance(supposed_list,list):
+		return supposed_list
+	else:
+		return [supposed_list]
+
 def file_list(inpath):
 	""" Returns a list of strings that are valid paths in the system.
 
@@ -101,7 +107,7 @@ def file_list(inpath):
 		a list of strings, each is a valid path to a file in the system
 	"""
 	file_list = []
-	for ip in ensurelist(inpath):
+	for ip in _ensurelist(inpath):
 		if os.path.isfile(ip):
 			file_list.append(ip)
 		elif os.path.isdir(ip):
