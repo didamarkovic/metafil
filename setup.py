@@ -74,7 +74,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=["unicodedata"],
+    install_requires=[],
     #dependency_links = ['git+https://github.com/bengranett/ConfigArgParseB.git@34ae450ca578aef0755269f20e8cf56349ef5e88#egg=ConfigArgParseB'], 
     #http://stackoverflow.com/questions/16584552/how-to-state-in-requirements-txt-a-direct-github-source
 
