@@ -267,6 +267,18 @@ def fnamediff(pathpattern, padding=''):
 
 """ ------------------------- GIT TOOLS -------------------------- """
 
+def searchup(path, filename, maxstep=3):
+	""" Recursively searches up the path until it finds filename. 
+		Traverses max maxstep levels. 
+	"""	
+	if maxstep<0: raise Exception('Path not found!')
+	path = os.path.abspath(path)
+	full_filename = os.path.join(path,filename)
+	if os.path.exists(full_filename):
+		return full_filename
+	else:
+		return searchup(path+'/..', filename, maxstep-1)
+
 # A class that contains the Git environment at the time of it's initialisation.
 # Currently it uses the subprocess module to speak to Git through the system.
 # Ideally some day it would use the GitPython module or Dulwich or something like it.
@@ -275,7 +287,7 @@ class GitEnv(object):
 	# Some day could pass the directory containing the .git/ folder as a possible input to __init__.
 	# Could find this by searching for it in each parent directory and keep cd .. -ing until you find it.
 	def __init__(self, home='.'):
-		self.git_dir = os.path.join(home, '.git')
+		self.git_dir = searchup(home, '.git')
 		self.hash, self.author, self.date = [str(s) for s in self.get_commit()]
 		self.url = str(self.get_remote()).split('@')[-1]
 		self.branch = str(self.get_branch())
@@ -323,7 +335,7 @@ class GitEnv(object):
 			# This is a hack, should use a dict so can be sure what we are reading in:
 			if 'commit' in entry[0] or 'Author' in entry[0] or 'Date' in entry[0]:
 				newlist.append(' '.join(entry[1:]).strip())
-		if len(newlist)!=3: raise Exception('No commit found.')
+		if len(newlist)!=3: raise Exception('No commit found!')
 		return newlist
 
 	# At the moment this only gives the first url in what git returns.
