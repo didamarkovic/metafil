@@ -43,7 +43,7 @@ def validate_filename(filepath):
 	return os.path.abspath(filepath)
 
 
-def increment_filename(filepath, filestr="", fileout=None):
+def increment_filename(filepath, filestr="", fileout=None, suffix=None):
     """ Adds the word filestr to filename if such a file doesn't exist 
         (nothing is added by default, this could be the file suffix for example, ".dat").
         If it does, it adds [...].v#, where # is the number that 
@@ -66,7 +66,8 @@ def increment_filename(filepath, filestr="", fileout=None):
     """
     
     # Read the suffix, which is assumed to be a string after the last dot
-    suffix = '.' + filepath.split('.')[-1]
+    if suffix is None:
+	    suffix = '.' + filepath.split('.')[-1]
     
     # Assign the first desired filename
     if fileout is None:
