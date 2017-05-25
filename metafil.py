@@ -42,6 +42,31 @@ def validate_filename(filepath):
 		raise Exception('File not found: ' + filepath)
 	return os.path.abspath(filepath)
 
+def new_suffix(filename,suffix):
+    """ If fileout exists in the file system it adds [...].v#, where # is the number that 
+           creates a filename that doesn't exist yet.
+
+    Parameters
+    ----------
+    filename  : str
+            input filename (can be with path) with undesired suffix (defined as after last dot!)
+    suffix  : str
+    		new suffix (dot separator added automatically, so don't include here!)
+
+    Returns
+    -------
+    filename : str
+        filename with new suffix
+    """
+
+    # Read the suffix, which is assumed to be a string after the last dot
+    return '.'.join(filename.split('.')[:-1] + [suffix])
+
+if __name__=='__main__':
+
+   	filename = '/here.nor.there/this.file.txt.uk'
+   	suf = 'hdf5.bob'
+   	print new_suffix(filename,suf)
 
 def increment_filename(fileout):
     """ If fileout exists in the file system it adds [...].v#, where # is the number that 
