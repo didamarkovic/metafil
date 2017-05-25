@@ -64,16 +64,16 @@ def increment_filename(filepath, filestr="", fileout=None, suffix=None):
     filepath : str
         new path not associated with a existing file
     """
-    
-    # Read the suffix, which is assumed to be a string after the last dot
-    if suffix is None:
-	    suffix = '.' + filepath.split('.')[-1]
-    
+        
     # Assign the first desired filename
     if fileout is None:
         filepath = '.'.join(filepath.split('.')[:-1]) + filestr + suffix
     else:
         filepath = fileout
+
+    # Read the suffix, which is assumed to be a string after the last dot
+    if suffix is None:
+	    suffix = '.' + filepath.split('.')[-1]
 
     # If it already exists, increment it
     n=1
