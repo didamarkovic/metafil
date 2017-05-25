@@ -43,19 +43,12 @@ def validate_filename(filepath):
 	return os.path.abspath(filepath)
 
 
-def increment_filename(filepath, filestr="", fileout=None, suffix=None):
-    """ Adds the word filestr to filename if such a file doesn't exist 
-        (nothing is added by default, this could be the file suffix for example, ".dat").
-        If it does, it adds [...].v#, where # is the number that 
+def increment_filename(fileout):
+    """ If fileout exists in the file system it adds [...].v#, where # is the number that 
            creates a filename that doesn't exist yet.
 
     Parameters
     ----------
-    filepath : str
-        path to file whose name is to be incremented
-    filestr  : str
-        string to add to filename which is to be incremented
-            this is ignored if the desired pathname is given fully as fileout
     fileout  : str
             full desired pathname (will be incremented if exists)
 
@@ -65,27 +58,20 @@ def increment_filename(filepath, filestr="", fileout=None, suffix=None):
         new path not associated with a existing file
     """
         
-    # Assign the first desired filename
-    if fileout is None:
-        filepath = '.'.join(filepath.split('.')[:-1]) + filestr + suffix
-    else:
-        filepath = fileout
-
     # Read the suffix, which is assumed to be a string after the last dot
-    if suffix is None:
-	    suffix = '.' + filepath.split('.')[-1]
+    suffix = '.' + fileout.split('.')[-1]
 
     # If it already exists, increment it
     n=1
-    while os.path.exists(filepath):
+    while os.path.exists(fileout):
         n+=1
         if n==2: 
-            filepath = '.'.join(filepath.split('.')[:-1]) + '.v' + str(n) + suffix
+            fileout = '.'.join(fileout.split('.')[:-1]) + '.v' + str(n) + suffix
             continue
-        filepath = '.'.join(filepath.split('.')[:-2]) + '.v' + str(n) + suffix
+        fileout = '.'.join(fileout.split('.')[:-2]) + '.v' + str(n) + suffix
 
     # Return the absolute path so there are no relative path problems later
-    return os.path.abspath(filepath)
+    return os.path.abspath(fileout)
     
 def _ensurelist(supposed_list):
 	if isinstance(supposed_list,list):
