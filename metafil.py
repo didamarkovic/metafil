@@ -6,7 +6,7 @@
 	Collection of old filenaming functions and other dinky meta tools.
 	Many are from forumns etc (links in comments).
 """
-import inspect, glob, time, subprocess, os.path, unicodedata
+import inspect, glob, time, subprocess, os, os.path, unicodedata
 
 """ ---------------------- DEBUGGING TOOLS ----------------------- """
 
@@ -61,12 +61,6 @@ def new_suffix(filename,suffix):
 
     # Read the suffix, which is assumed to be a string after the last dot
     return '.'.join(filename.split('.')[:-1] + [suffix])
-
-if __name__=='__main__':
-
-   	filename = '/here.nor.there/this.file.txt.uk'
-   	suf = 'hdf5.bob'
-   	print new_suffix(filename,suf)
 
 def increment_filename(fileout):
     """ If fileout exists in the file system it adds [...].v#, where # is the number that 
@@ -283,7 +277,7 @@ def searchup(path, filename, maxstep=3):
 	""" Recursively searches up the path until it finds filename. 
 		Traverses max maxstep levels. 
 	"""	
-	if maxstep<0: raise Exception('Path not found!')
+	if maxstep<0: raise IOError('Path not found!')
 	path = os.path.abspath(path)
 	full_filename = os.path.join(path,filename)
 	if os.path.exists(full_filename):
@@ -296,10 +290,14 @@ def searchup(path, filename, maxstep=3):
 # Ideally some day it would use the GitPython module or Dulwich or something like it.
 class GitEnv(object):
 
-	# Some day could pass the directory containing the .git/ folder as a possible input to __init__.
-	# Could find this by searching for it in each parent directory and keep cd .. -ing until you find it.
 	def __init__(self, home='.'):
-		self.git_dir = searchup(home, '.git')
+		try:
+			self.git_dir = searchup(home, '.git')
+		except IOError:
+			self.git_dir = home
+			self.isrepo = False
+		else:
+			self.isrepo = True
 		self.hash, self.author, self.date = [str(s) for s in self.get_commit()]
 		self.url = str(self.get_remote()).split('@')[-1]
 		self.branch = str(self.get_branch())
@@ -311,13 +309,20 @@ class GitEnv(object):
 	def __str__(self):
 		startline = self.printstart
 		as_string = startline + "This was generated at " + time.strftime('%H:%M:%S, %d %b %Y')
-		as_string += "\n" + startline + "\t by code from the Git repo:"
-		as_string += "\n" + startline + "\t\t" + self.url + ","
-		as_string += "\n" + startline + "\t on the " + self.branch + " branch,"
-		as_string += "\n" + startline + "\t with commit: " + self.hash[:10]
-		if self.is_dirty(): as_string += "-dirty"
-		as_string += "\n" + startline + "\t\t from " + self.date + ", "
-		as_string += "\n" + startline + "\t\t by " + self.author + "."
+		as_string += "\n" + startline + "\t by code from"
+		if self.isrepo: 
+			as_string += " the Git repo:"
+			as_string += "\n" + startline + "\t\t" + self.url + ","
+			as_string += "\n" + startline + "\t on the " + self.branch + " branch,"
+			as_string += "\n" + startline + "\t with commit: " + self.hash[:10]
+			if self.is_dirty(): as_string += "-dirty"
+			as_string += "\n" + startline + "\t\t from " + self.date + ", "
+			as_string += "\n" + startline + "\t\t by " + self.author
+		else:
+			as_string += " the local folder (no Git repo found):"
+			as_string += "\n" + startline + "\t\t" + self.url + ","	
+			as_string += "\n" + startline + "\t by " + self.author
+		as_string += "."			
 		return unicodedata.normalize('NFKC', as_string.decode("unicode-escape")).encode('ascii', 'ignore')
 
 	def set_print(self, startline):
@@ -330,7 +335,6 @@ class GitEnv(object):
 			cmd.append(self.git_dir)
 		for one in args:
 			cmd.append(one)
-
 		return cmd
 
 	def get_hash(self, nochar=7, sep=''):
@@ -338,6 +342,8 @@ class GitEnv(object):
 
 	# Get the hash, author and date of the most recent commit of the current repo.
 	def get_commit(self):
+		if not self.isrepo:
+			return [time.gmtime(), os.getenv('USER'), time.strftime('%d/%b/%Y',time.gmtime())]
 		cmd = subprocess.Popen(self.get_git_cmd(['log', '-n','1']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
 		newlist=[]
@@ -353,6 +359,7 @@ class GitEnv(object):
 	# At the moment this only gives the first url in what git returns.
 	# Eventually it'd be nice if you could get the origin url, the fetch...
 	def get_remote(self):
+		if not self.isrepo: return os.path.abspath(self.git_dir)
 		cmd = subprocess.Popen(self.get_git_cmd(['remote', '-v']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
 		if bool(cmd_out):
@@ -365,6 +372,7 @@ class GitEnv(object):
 			return None
 
 	def get_branch(self):
+		if not self.isrepo: return None
 		cmd = subprocess.Popen(self.get_git_cmd(['branch']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
 		branches = cmd_out.strip().splitlines()
@@ -373,11 +381,13 @@ class GitEnv(object):
 				return branch.replace('*','').strip()
 
 	def get_repo(self):
+		if not self.isrepo: return 'local'
 		cmd = subprocess.Popen(self.get_git_cmd(['rev-parse','--show-toplevel']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
 		return cmd_out.strip().split('/')[-1]
 
 	def is_dirty(self):
+		if not self.isrepo: return None
 		cmd = subprocess.Popen(self.get_git_cmd(['status']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
 		return 'modified' in cmd_out
