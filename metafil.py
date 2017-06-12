@@ -6,7 +6,7 @@
 	Collection of old filenaming functions and other dinky meta tools.
 	Many are from forumns etc (links in comments).
 """
-import inspect, glob, time, subprocess, os, os.path, unicodedata
+import inspect, glob, time, subprocess, os, os.path, unicodedata, pkg_resources
 
 """ ---------------------- DEBUGGING TOOLS ----------------------- """
 
@@ -290,7 +290,8 @@ def searchup(path, filename, maxstep=3):
 # Ideally some day it would use the GitPython module or Dulwich or something like it.
 class GitEnv(object):
 
-	def __init__(self, home='.'):
+	def __init__(self, home='.', name=None):
+		self.name = name
 		try:
 			self.git_dir = searchup(home, '.git')
 		except IOError:
@@ -303,13 +304,16 @@ class GitEnv(object):
 		self.branch = str(self.get_branch())
 		self.repo = str(self.get_repo())
 		self.printstart = ''
-	# Also, should have an if that gives out the name of the parent folder + the
-	# date and time in the case that it is NOT A GIT REPO!
+		self.version = str(self.get_version(name))
 
 	def __str__(self):
 		startline = self.printstart
 		as_string = startline + "This was generated at " + time.strftime('%H:%M:%S, %d %b %Y')
-		as_string += "\n" + startline + "\t by code from"
+		as_string += "\n" + startline + "\t by"
+		if self.name is not None: 
+			as_string += " the " + self.name + " code, version " + self.version + ", from"
+		else: 
+			as_string += " code from"
 		if self.isrepo: 
 			as_string += " the Git repo:"
 			as_string += "\n" + startline + "\t\t" + self.url + ","
@@ -381,15 +385,31 @@ class GitEnv(object):
 				return branch.replace('*','').strip()
 
 	def get_repo(self):
-		if not self.isrepo: return 'local'
+		if not self.isrepo and self.name is None: 
+			return os.path.basename(self.git_dir)
+		elif not self.isrepo:
+			return self.name
 		cmd = subprocess.Popen(self.get_git_cmd(['rev-parse','--show-toplevel']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
-		return cmd_out.strip().split('/')[-1]
+		repo = cmd_out.strip().split('/')[-1]
+		if self.name is not None: assert self.name == repo, \
+			"Misatch between passed distribution name ("+ str(self.name) +") and repo name ("+ str(repo) +")!"
+		return repo
 
 	def is_dirty(self):
 		if not self.isrepo: return None
 		cmd = subprocess.Popen(self.get_git_cmd(['status']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
 		return 'modified' in cmd_out
+
+	def get_version(self,name=None):
+		if name is None:
+			return None
+		else:
+			try:
+				return pkg_resources.require(name)[0].version
+			except pkg_resources.DistributionNotFound:
+				raise ImportError("A '" + name +\
+					"' distribution was not found, but installation is required to access its version.")
 
 """ ---------------------- END OF GIT TOOLS ---------------------- """
