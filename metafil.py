@@ -291,6 +291,7 @@ def searchup(path, filename, maxstep=3):
 class GitEnv(object):
 
 	def __init__(self, home='.', name=None):
+		home = os.path.dirname(os.path.realpath(home))
 		self.name = name
 		try:
 			self.git_dir = searchup(home, '.git')
@@ -343,6 +344,13 @@ class GitEnv(object):
 
 	def get_hash(self, nochar=7, sep=''):
 		return sep+self.hash[0:nochar]+sep
+
+	def describe(self):
+		if not self.isrepo:
+			raise ValueError("Not a git repo: %s"%self.git_dir)
+		cmd = subprocess.Popen(self.get_git_cmd(['describe',]), stdout=subprocess.PIPE)
+		cmd_out, cmd_err = cmd.communicate()
+		return cmd_out.strip()
 
 	# Get the hash, author and date of the most recent commit of the current repo.
 	def get_commit(self):
