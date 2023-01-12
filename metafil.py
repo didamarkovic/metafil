@@ -158,7 +158,7 @@ def strdiff(filenames, spliton='_'):
 
 	# Nest this function - try to split it on '.' and '-' as well
 	if new_spliton != '': 
-		tmp = strdiff(namelist.values(), spliton=new_spliton)
+		tmp = strdiff(list(namelist.values()), spliton=new_spliton)
 		# Populate the dictionary to return
 		for filename in filenames:
 			namelist[filename] = tmp[namelist[filename]]
@@ -177,7 +177,7 @@ def securediff(fdict):
 
 	common = None
 	problematic = []
-	for fname, uniqstr in fdict.items():
+	for fname, uniqstr in list(fdict.items()):
 
 		# Find the string in common
 		if fname.count(uniqstr) == 1:
@@ -196,7 +196,7 @@ def securediff(fdict):
 
 		# Check that it does appear in the path
 		elif fname.count(uniqstr) == 0:
-			print fname, uniqstr
+			print(fname, uniqstr)
 			raise Exception('Something has gone terribly wrong!')
 
 	# Check that common string found is also present in the problematic filenames
@@ -209,7 +209,7 @@ def securediff(fdict):
 	# 	strings, pad the unique string so that it always appears only once.
 	if len(problematic) > 0:
 		
-		for fname, uniqstr in fdict.items():
+		for fname, uniqstr in list(fdict.items()):
 
 			if len(common[0]) > 0:
 				new_uniqstr = common[0][-1] + uniqstr
