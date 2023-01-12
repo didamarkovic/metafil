@@ -12,7 +12,7 @@ import inspect, glob, time, subprocess, os, os.path, unicodedata, pkg_resources
 
 def lineno(string=''):
 	# Returns the current line number in our program. How come not always the line in this file??
-	if string is not '':
+	if string != '':
 		return "L." + str(inspect.currentframe().f_back.f_lineno) + ': ' + str(string)
 	else:
 		return "L." + str(inspect.currentframe().f_back.f_lineno)
@@ -328,7 +328,7 @@ class GitEnv(object):
 			as_string += "\n" + startline + "\t\t" + self.url + ","	
 			as_string += "\n" + startline + "\t by " + self.author
 		as_string += "."			
-		return unicodedata.normalize('NFKC', as_string.decode("unicode-escape")).encode('ascii', 'ignore')
+		return unicodedata.normalize('NFKC', as_string)
 
 	def set_print(self, startline):
 		self.printstart = startline
