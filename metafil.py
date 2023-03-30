@@ -290,8 +290,8 @@ def searchup(path, filename, maxstep=3):
 # Ideally some day it would use the GitPython module or Dulwich or something like it.
 class GitEnv(object):
 
-	def __init__(self, home='.', name=None):
-		home = os.path.dirname(os.path.realpath(home))
+	def __init__(self, home=os.getcwd(), name=None):
+		home = os.path.realpath(os.path.abspath(home)).split()[0] # make sure it's a directory
 		self.name = name
 		try:
 			self.git_dir = searchup(home, '.git')
@@ -359,7 +359,7 @@ class GitEnv(object):
 		cmd = subprocess.Popen(self.get_git_cmd(['log', '-n','1']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
 		newlist=[]
-		for entry in cmd_out.strip().split('\n'):
+		for entry in cmd_out.decode("utf-8").strip().split('\n'):
 			if entry=='': continue
 			entry = entry.split(' ')
 			# This is a hack, should use a dict so can be sure what we are reading in:
@@ -376,7 +376,7 @@ class GitEnv(object):
 		cmd_out, cmd_err = cmd.communicate()
 		if bool(cmd_out):
 			try:
-				return cmd_out.strip().split('https://')[1].split(' ')[0]
+				return cmd_out.decode("utf-8").strip().split('https://')[1].split(' ')[0]
 			except IndexError:
 				ssh_url = cmd_out.strip().split('git@')[1].split(' ')[0]
 				return ssh_url.replace(':','/')
@@ -389,6 +389,7 @@ class GitEnv(object):
 		cmd_out, cmd_err = cmd.communicate()
 		branches = cmd_out.strip().splitlines()
 		for branch in branches:
+			branch = branch.decode("utf-8")
 			if '*' in branch:
 				return branch.replace('*','').strip()
 
@@ -399,7 +400,7 @@ class GitEnv(object):
 			return self.name
 		cmd = subprocess.Popen(self.get_git_cmd(['rev-parse','--show-toplevel']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
-		repo = cmd_out.strip().split('/')[-1]
+		repo = cmd_out.decode("utf-8").strip().split('/')[-1]
 		if self.name is not None: assert self.name == repo, \
 			"Misatch between passed distribution name ("+ str(self.name) +") and repo name ("+ str(repo) +")!"
 		return repo
@@ -408,7 +409,7 @@ class GitEnv(object):
 		if not self.isrepo: return None
 		cmd = subprocess.Popen(self.get_git_cmd(['status']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
-		return 'modified' in cmd_out
+		return 'modified' in cmd_out.decode("utf-8")
 
 	def get_version(self,name=None):
 		if name is None:
