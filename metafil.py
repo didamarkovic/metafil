@@ -12,7 +12,7 @@ import inspect, glob, time, subprocess, os, os.path, unicodedata, pkg_resources
 
 def lineno(string=''):
 	# Returns the current line number in our program. How come not always the line in this file??
-	if string is not '':
+	if string != '':
 		return "L." + str(inspect.currentframe().f_back.f_lineno) + ': ' + str(string)
 	else:
 		return "L." + str(inspect.currentframe().f_back.f_lineno)
@@ -158,7 +158,7 @@ def strdiff(filenames, spliton='_'):
 
 	# Nest this function - try to split it on '.' and '-' as well
 	if new_spliton != '': 
-		tmp = strdiff(namelist.values(), spliton=new_spliton)
+		tmp = strdiff(list(namelist.values()), spliton=new_spliton)
 		# Populate the dictionary to return
 		for filename in filenames:
 			namelist[filename] = tmp[namelist[filename]]
@@ -177,7 +177,7 @@ def securediff(fdict):
 
 	common = None
 	problematic = []
-	for fname, uniqstr in fdict.items():
+	for fname, uniqstr in list(fdict.items()):
 
 		# Find the string in common
 		if fname.count(uniqstr) == 1:
@@ -196,7 +196,7 @@ def securediff(fdict):
 
 		# Check that it does appear in the path
 		elif fname.count(uniqstr) == 0:
-			print fname, uniqstr
+			print(fname, uniqstr)
 			raise Exception('Something has gone terribly wrong!')
 
 	# Check that common string found is also present in the problematic filenames
@@ -209,7 +209,7 @@ def securediff(fdict):
 	# 	strings, pad the unique string so that it always appears only once.
 	if len(problematic) > 0:
 		
-		for fname, uniqstr in fdict.items():
+		for fname, uniqstr in list(fdict.items()):
 
 			if len(common[0]) > 0:
 				new_uniqstr = common[0][-1] + uniqstr
@@ -290,8 +290,8 @@ def searchup(path, filename, maxstep=3):
 # Ideally some day it would use the GitPython module or Dulwich or something like it.
 class GitEnv(object):
 
-	def __init__(self, home='.', name=None):
-		home = os.path.dirname(os.path.realpath(home))
+	def __init__(self, home=os.getcwd(), name=None):
+		home = os.path.realpath(os.path.abspath(home)).split()[0] # make sure it's a directory
 		self.name = name
 		try:
 			self.git_dir = searchup(home, '.git')
@@ -328,7 +328,7 @@ class GitEnv(object):
 			as_string += "\n" + startline + "\t\t" + self.url + ","	
 			as_string += "\n" + startline + "\t by " + self.author
 		as_string += "."			
-		return unicodedata.normalize('NFKC', as_string.decode("unicode-escape")).encode('ascii', 'ignore')
+		return unicodedata.normalize('NFKC', as_string)
 
 	def set_print(self, startline):
 		self.printstart = startline
@@ -359,7 +359,7 @@ class GitEnv(object):
 		cmd = subprocess.Popen(self.get_git_cmd(['log', '-n','1']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
 		newlist=[]
-		for entry in cmd_out.strip().split('\n'):
+		for entry in cmd_out.decode("utf-8").strip().split('\n'):
 			if entry=='': continue
 			entry = entry.split(' ')
 			# This is a hack, should use a dict so can be sure what we are reading in:
@@ -376,7 +376,7 @@ class GitEnv(object):
 		cmd_out, cmd_err = cmd.communicate()
 		if bool(cmd_out):
 			try:
-				return cmd_out.strip().split('https://')[1].split(' ')[0]
+				return cmd_out.decode("utf-8").strip().split('https://')[1].split(' ')[0]
 			except IndexError:
 				ssh_url = cmd_out.strip().split('git@')[1].split(' ')[0]
 				return ssh_url.replace(':','/')
@@ -389,6 +389,7 @@ class GitEnv(object):
 		cmd_out, cmd_err = cmd.communicate()
 		branches = cmd_out.strip().splitlines()
 		for branch in branches:
+			branch = branch.decode("utf-8")
 			if '*' in branch:
 				return branch.replace('*','').strip()
 
@@ -399,7 +400,7 @@ class GitEnv(object):
 			return self.name
 		cmd = subprocess.Popen(self.get_git_cmd(['rev-parse','--show-toplevel']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
-		repo = cmd_out.strip().split('/')[-1]
+		repo = cmd_out.decode("utf-8").strip().split('/')[-1]
 		if self.name is not None: assert self.name == repo, \
 			"Misatch between passed distribution name ("+ str(self.name) +") and repo name ("+ str(repo) +")!"
 		return repo
@@ -408,7 +409,7 @@ class GitEnv(object):
 		if not self.isrepo: return None
 		cmd = subprocess.Popen(self.get_git_cmd(['status']), stdout=subprocess.PIPE)
 		cmd_out, cmd_err = cmd.communicate()
-		return 'modified' in cmd_out
+		return 'modified' in cmd_out.decode("utf-8")
 
 	def get_version(self,name=None):
 		if name is None:
