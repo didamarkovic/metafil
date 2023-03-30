@@ -290,7 +290,7 @@ def searchup(path, filename, maxstep=3):
 # Ideally some day it would use the GitPython module or Dulwich or something like it.
 class GitEnv(object):
 
-	def __init__(self, home=os.getcwd(), name=None):
+	def __init__(self, home=inspect.stack()[-1].filename, name=None):
 		home = os.path.realpath(os.path.abspath(home)).split()[0] # make sure it's a directory
 		self.name = name
 		try:
