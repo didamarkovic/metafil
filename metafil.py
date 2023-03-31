@@ -6,7 +6,7 @@
 	Collection of old filenaming functions and other dinky meta tools.
 	Many are from forumns etc (links in comments).
 """
-import inspect, glob, time, subprocess, os, os.path, unicodedata, pkg_resources
+import inspect, glob, time, subprocess, os, os.path, unicodedata, pkg_resources, git
 
 """ ---------------------- DEBUGGING TOOLS ----------------------- """
 
@@ -285,140 +285,80 @@ def searchup(path, filename, maxstep=3):
 	else:
 		return searchup(path+'/..', filename, maxstep-1)
 
-# A class that contains the Git environment at the time of it's initialisation.
-# Currently it uses the subprocess module to speak to Git through the system.
-# Ideally some day it would use the GitPython module or Dulwich or something like it.
+def gitstamp(home=inspect.stack()[-1].filename, linestart = ''):
+	""" Returns a string that describes the git repo of the input path. Default value uses the
+	 	path of the script that is calling this function.
+		If the caller is not in a git repo, it returns some basic info about the 
+		location on disk. 
+
+		Example: `print(metafil.gitstamp())` to create the stamp for the current script.
+
+		home : str - path to repo to create the stamp (default: caller function's directory)
+		linestart : str - prepend this to each line of the string, e.g. # (default: '')
+	""" 
+
+	# Make sure it's a directory
+	home = os.path.realpath(os.path.abspath(home)).split()[0]
+
+	# Check if there is a git repo in the folder of home or above
+	try:
+		home = searchup(home, '.git')
+	except IOError:
+		isrepo = False
+	else:
+		isrepo = True
+
+	# Call GitPython functions and collect the needed info
+	if isrepo:
+		repo = git.Repo(home)
+		url = repo.remote().url
+		branch = str(repo.active_branch)
+		hash = str(repo.commit())
+		author = str(repo.commit().author) + ' <' + str(repo.commit().author.email) + '>'
+		date = repo.commit().authored_datetime.strftime("%A, %H:%M:%S %z UTC, %d %b %Y")
+		#name = os.path.basename(home).split('.')[0]
+
+	# Now construct the string stamp
+	as_string = linestart + "This was generated at " + time.strftime('%H:%M:%S %z UTC, %d %b %Y')
+	as_string += "\n" + linestart + "\t by code from"
+	if isrepo: 
+		as_string += " the Git repo:"
+		as_string += "\n" + linestart + "\t\t" + url + ","
+		as_string += "\n" + linestart + "\t on the " + branch + " branch,"
+		as_string += "\n" + linestart + "\t with commit: " + hash[:10]
+		if repo.is_dirty(): as_string += "-dirty"
+		as_string += "\n" + linestart + "\t\t from " + date + ", "
+		as_string += "\n" + linestart + "\t\t by " + author
+	else:
+		as_string += " the local folder (no Git repo found):"
+		as_string += "\n" + linestart + "\t\t" + os.path.abspath(home) + ","	
+		as_string += "\n" + linestart + "\t by " + os.getenv('USER')
+	as_string += "."
+	
+	return unicodedata.normalize('NFKC', as_string)
+
+# For backward compatibility only - to be removed (use function above):
 class GitEnv(object):
 
-	def __init__(self, home=inspect.stack()[-1].filename, name=None):
-		home = os.path.realpath(os.path.abspath(home)).split()[0] # make sure it's a directory
-		self.name = name
-		try:
-			self.git_dir = searchup(home, '.git')
-		except IOError:
-			self.git_dir = home
-			self.isrepo = False
-		else:
-			self.isrepo = True
-		self.hash, self.author, self.date = [str(s) for s in self.get_commit()]
-		self.url = str(self.get_remote()).split('@')[-1]
-		self.branch = str(self.get_branch())
-		self.repo = str(self.get_repo())
-		self.printstart = ''
-		self.version = str(self.get_version(name))
-
+	def __init__(self, home=inspect.stack()[-1].filename):
+		self.home = home
+		self.linestart=''
+		
 	def __str__(self):
-		startline = self.printstart
-		as_string = startline + "This was generated at " + time.strftime('%H:%M:%S, %d %b %Y')
-		as_string += "\n" + startline + "\t by"
-		if self.name is not None: 
-			as_string += " the " + self.name + " code, version " + self.version + ", from"
-		else: 
-			as_string += " code from"
-		if self.isrepo: 
-			as_string += " the Git repo:"
-			as_string += "\n" + startline + "\t\t" + self.url + ","
-			as_string += "\n" + startline + "\t on the " + self.branch + " branch,"
-			as_string += "\n" + startline + "\t with commit: " + self.hash[:10]
-			if self.is_dirty(): as_string += "-dirty"
-			as_string += "\n" + startline + "\t\t from " + self.date + ", "
-			as_string += "\n" + startline + "\t\t by " + self.author
-		else:
-			as_string += " the local folder (no Git repo found):"
-			as_string += "\n" + startline + "\t\t" + self.url + ","	
-			as_string += "\n" + startline + "\t by " + self.author
-		as_string += "."			
-		return unicodedata.normalize('NFKC', as_string)
+		return gitstamp(home=inspect.stack()[-1].filename,linestart=self.linestart)
 
 	def set_print(self, startline):
-		self.printstart = startline
+		self.linestart = startline
 
-	def get_git_cmd(self, args=[]):
-		cmd = ['git']
-		if self.git_dir != None:
-			cmd.append('--git-dir')
-			cmd.append(self.git_dir)
-		for one in args:
-			cmd.append(one)
-		return cmd
-
-	def get_hash(self, nochar=7, sep=''):
-		return sep+self.hash[0:nochar]+sep
-
-	def describe(self):
-		if not self.isrepo:
-			raise ValueError("Not a git repo: %s"%self.git_dir)
-		cmd = subprocess.Popen(self.get_git_cmd(['describe',]), stdout=subprocess.PIPE)
-		cmd_out, cmd_err = cmd.communicate()
-		return cmd_out.strip()
-
-	# Get the hash, author and date of the most recent commit of the current repo.
-	def get_commit(self):
-		if not self.isrepo:
-			return [time.gmtime(), os.getenv('USER'), time.strftime('%d/%b/%Y',time.gmtime())]
-		cmd = subprocess.Popen(self.get_git_cmd(['log', '-n','1']), stdout=subprocess.PIPE)
-		cmd_out, cmd_err = cmd.communicate()
-		newlist=[]
-		for entry in cmd_out.decode("utf-8").strip().split('\n'):
-			if entry=='': continue
-			entry = entry.split(' ')
-			# This is a hack, should use a dict so can be sure what we are reading in:
-			if 'commit' in entry[0] or 'Author' in entry[0] or 'Date' in entry[0]:
-				newlist.append(' '.join(entry[1:]).strip())
-		if len(newlist)!=3: raise Exception('No commit found!')
-		return newlist
-
-	# At the moment this only gives the first url in what git returns.
-	# Eventually it'd be nice if you could get the origin url, the fetch...
-	def get_remote(self):
-		if not self.isrepo: return os.path.abspath(self.git_dir)
-		cmd = subprocess.Popen(self.get_git_cmd(['remote', '-v']), stdout=subprocess.PIPE)
-		cmd_out, cmd_err = cmd.communicate()
-		if bool(cmd_out):
-			try:
-				return cmd_out.decode("utf-8").strip().split('https://')[1].split(' ')[0]
-			except IndexError:
-				ssh_url = cmd_out.strip().split('git@')[1].split(' ')[0]
-				return ssh_url.replace(':','/')
-		else:
-			return None
-
-	def get_branch(self):
-		if not self.isrepo: return None
-		cmd = subprocess.Popen(self.get_git_cmd(['branch']), stdout=subprocess.PIPE)
-		cmd_out, cmd_err = cmd.communicate()
-		branches = cmd_out.strip().splitlines()
-		for branch in branches:
-			branch = branch.decode("utf-8")
-			if '*' in branch:
-				return branch.replace('*','').strip()
-
-	def get_repo(self):
-		if not self.isrepo and self.name is None: 
-			return os.path.basename(self.git_dir)
-		elif not self.isrepo:
-			return self.name
-		cmd = subprocess.Popen(self.get_git_cmd(['rev-parse','--show-toplevel']), stdout=subprocess.PIPE)
-		cmd_out, cmd_err = cmd.communicate()
-		repo = cmd_out.decode("utf-8").strip().split('/')[-1]
-		if self.name is not None: assert self.name == repo, \
-			"Misatch between passed distribution name ("+ str(self.name) +") and repo name ("+ str(repo) +")!"
-		return repo
-
-	def is_dirty(self):
-		if not self.isrepo: return None
-		cmd = subprocess.Popen(self.get_git_cmd(['status']), stdout=subprocess.PIPE)
-		cmd_out, cmd_err = cmd.communicate()
-		return 'modified' in cmd_out.decode("utf-8")
-
-	def get_version(self,name=None):
-		if name is None:
-			return None
-		else:
-			try:
-				return pkg_resources.require(name)[0].version
-			except pkg_resources.DistributionNotFound:
-				raise ImportError("A '" + name +\
-					"' distribution was not found, but installation is required to access its version.")
+def get_version(name=None):
+	# Returns the version of an imported module
+	if name is None:
+		return None
+	else:
+		try:
+			return pkg_resources.require(name)[0].version
+		except pkg_resources.DistributionNotFound:
+			raise ImportError("A '" + name +\
+				"' distribution was not found, but installation is required to access its version.")
 
 """ ---------------------- END OF GIT TOOLS ---------------------- """
