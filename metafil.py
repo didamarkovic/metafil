@@ -378,8 +378,8 @@ class GitEnv(object):
 			try:
 				return cmd_out.decode("utf-8").strip().split('https://')[1].split(' ')[0]
 			except IndexError:
-				ssh_url = cmd_out.strip().split('git@')[1].split(' ')[0]
-				return ssh_url.replace(':','/')
+				ssh_url = cmd_out.strip().split("git@".encode("utf-8"))[1].split(" ".encode("utf-8"))[0]
+				return ssh_url.replace(":".encode("utf-8"),"/".encode("utf-8"))
 		else:
 			return None
 
